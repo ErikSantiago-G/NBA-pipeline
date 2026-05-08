@@ -26,7 +26,7 @@ No requiere servidor local. Al abrirlo, intenta descargar el CSV automaticamente
 
 En GitHub Pages, la pagina principal `index.html` redirige automaticamente a `dashboard_nba.html`.
 
-El repositorio incluye un workflow en `.github/workflows/pages.yml` para desplegar el sitio estatico automaticamente con GitHub Actions.
+El repositorio incluye un workflow en `.github/workflows/static.yml` para desplegar el sitio estatico automaticamente con GitHub Actions.
 
 ## Como generar la tabla limpia del scraping
 
