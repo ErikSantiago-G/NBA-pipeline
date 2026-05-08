@@ -24,6 +24,8 @@ Abre el archivo `dashboard_nba.html` en el navegador.
 
 No requiere servidor local. Al abrirlo, intenta descargar el CSV automaticamente, limpia los datos en memoria, transforma metricas y presenta KPIs, graficos y tablas.
 
+En GitHub Pages, la pagina principal `index.html` redirige automaticamente a `dashboard_nba.html`.
+
 ## Como generar la tabla limpia del scraping
 
 Desde esta carpeta ejecuta:
