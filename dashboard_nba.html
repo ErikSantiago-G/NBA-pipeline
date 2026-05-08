@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard NBA | Pipeline de datos</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --ink: #162033;
+      --muted: #647084;
+      --line: #d8dde8;
+      --red: #c8102e;
+      --blue: #1d428a;
+      --green: #15803d;
+      --amber: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    header {
+      background: linear-gradient(100deg, var(--blue), #0f6b8f 55%, var(--red));
+      color: white;
+      padding: 28px clamp(18px, 4vw, 48px);
+    }
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 5vw, 48px);
+      letter-spacing: 0;
+    }
+    header p {
+      margin: 0;
+      max-width: 960px;
+      line-height: 1.5;
+      color: rgba(255,255,255,.88);
+    }
+    main {
+      width: min(1280px, calc(100% - 28px));
+      margin: 18px auto 40px;
+    }
+    .toolbar, .grid, .wide, .pipeline {
+      display: grid;
+      gap: 14px;
+    }
+    .toolbar {
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      align-items: end;
+      margin-bottom: 14px;
+    }
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    select, input {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      color: var(--ink);
+      background: white;
+      font-size: 14px;
+    }
+    .status {
+      background: #edf7ee;
+      border: 1px solid #b7dfc0;
+      color: #14532d;
+      border-radius: 6px;
+      padding: 11px 12px;
+      font-size: 14px;
+      min-height: 42px;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .card, .chart-card, .table-card, .step {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(22,32,51,.04);
+    }
+    .card {
+      padding: 16px;
+    }
+    .card span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .card strong {
+      font-size: 28px;
+      line-height: 1;
+    }
+    .grid {
+      grid-template-columns: 1.4fr .9fr;
+      margin-bottom: 14px;
+    }
+    .chart-card, .table-card {
+      padding: 16px;
+      overflow: hidden;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+      letter-spacing: 0;
+    }
+    svg {
+      width: 100%;
+      height: 310px;
+      display: block;
+      background: #fbfcff;
+      border: 1px solid #edf0f6;
+      border-radius: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      border-bottom: 1px solid #edf0f6;
+      padding: 9px 8px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2) {
+      text-align: left;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .wide {
+      grid-template-columns: 1fr;
+      margin-bottom: 14px;
+    }
+    .pipeline {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .step {
+      padding: 14px;
+      min-height: 116px;
+    }
+    .step b {
+      display: block;
+      margin-bottom: 6px;
+    }
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+      color: white;
+      font-weight: 800;
+      background: var(--blue);
+    }
+    .bar-label {
+      fill: var(--ink);
+      font-size: 12px;
+    }
+    .axis {
+      stroke: #aab3c2;
+      stroke-width: 1;
+    }
+    @media (max-width: 900px) {
+      .toolbar, .kpis, .grid, .pipeline { grid-template-columns: 1fr; }
+      th, td { white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Pipeline NBA</h1>
+    <p>Dashboard de una simulación de ingeniería de datos: extracción automática de un CSV público, limpieza, carga en una capa analítica en memoria y visualización de estadísticas por temporada, equipo, posición y jugador.</p>
+  </header>
+
+  <main>
+    <section class="toolbar">
+      <label>Temporada
+        <select id="seasonFilter"></select>
+      </label>
+      <label>Equipo
+        <select id="teamFilter"></select>
+      </label>
+      <label>Posición
+        <select id="positionFilter"></select>
+      </label>
+      <label>Métrica ranking
+        <select id="metricFilter">
+          <option value="PTS">Puntos</option>
+          <option value="TRB">Rebotes</option>
+          <option value="AST">Asistencias</option>
+          <option value="PER">PER</option>
+        </select>
+      </label>
+    </section>
+
+    <div id="status" class="status">Extrayendo datos desde GitHub...</div>
+
+    <section class="kpis" aria-label="Indicadores principales">
+      <div class="card"><span>Registros limpios</span><strong id="kpiRows">0</strong></div>
+      <div class="card"><span>Jugadores</span><strong id="kpiPlayers">0</strong></div>
+      <div class="card"><span>Equipos</span><strong id="kpiTeams">0</strong></div>
+      <div class="card"><span>PTS promedio</span><strong id="kpiPts">0</strong></div>
+    </section>
+
+    <section class="grid">
+      <div class="chart-card">
+        <h2>Tendencia por temporada</h2>
+        <svg id="seasonChart" role="img" aria-label="Gráfico de tendencia por temporada"></svg>
+      </div>
+      <div class="table-card">
+        <h2>Top jugadores</h2>
+        <table>
+          <thead><tr><th>Jugador</th><th>Equipo</th><th>Temp.</th><th id="metricHeader">PTS</th></tr></thead>
+          <tbody id="playersTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="wide">
+      <div class="table-card">
+        <h2>Resumen por equipo</h2>
+        <table>
+          <thead><tr><th>Equipo</th><th>Jugadores</th><th>PTS</th><th>TRB</th><th>AST</th><th>PER</th></tr></thead>
+          <tbody id="teamsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="pipeline" aria-label="Etapas del pipeline">
+      <div class="step"><span class="badge">1</span><b>Extracción</b><p>El dashboard busca el CSV histórico desde GitHub y lo convierte en registros tabulares.</p></div>
+      <div class="step"><span class="badge">2</span><b>Limpieza</b><p>Elimina filas incompletas, normaliza números y conserva columnas analíticas.</p></div>
+      <div class="step"><span class="badge">3</span><b>Transformación</b><p>Agrega métricas por temporada, jugador y equipo para responder preguntas de negocio.</p></div>
+      <div class="step"><span class="badge">4</span><b>Carga</b><p>Publica la capa final en tablas y gráficos interactivos listos para exploración.</p></div>
+    </section>
+  </main>
+
+  <script>
+    const DATA_URL = "https://raw.githubusercontent.com/illumitata/NBA/master/data/Seasons_Stats.csv";
+    const fallbackCsv = `Year,Player,Pos,Age,Tm,G,PER,PTS,TRB,AST,STL,BLK
+2022,Nikola Jokic,C,26,DEN,74,32.8,2004,1019,584,109,63
+2022,Giannis Antetokounmpo,PF,27,MIL,67,32.1,2002,778,388,72,91
+2022,Luka Doncic,PG,22,DAL,65,25.1,1847,593,568,75,36
+2021,Stephen Curry,PG,32,GSW,63,26.3,2015,345,363,77,8
+2021,Joel Embiid,C,26,PHI,51,30.3,1451,539,145,50,69
+2020,James Harden,SG,30,HOU,68,29.1,2335,446,512,125,60
+2019,Paul George,SF,28,OKC,77,23.3,2159,628,318,170,34
+2018,LeBron James,SF,33,CLE,82,28.6,2251,709,747,116,71
+2017,Russell Westbrook,PG,28,OKC,81,30.6,2558,864,840,132,31
+2016,Kevin Durant,SF,27,OKC,72,28.2,2029,589,361,69,85`;
+
+    let cleanRows = [];
+
+    const num = value => {
+      const parsed = Number(String(value ?? "").replace(/,/g, ""));
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [], cell = "", quoted = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i], n = text[i + 1];
+        if (c === '"' && quoted && n === '"') { cell += '"'; i++; continue; }
+        if (c === '"') { quoted = !quoted; continue; }
+        if (c === "," && !quoted) { row.push(cell); cell = ""; continue; }
+        if ((c === "\n" || c === "\r") && !quoted) {
+          if (c === "\r" && n === "\n") i++;
+          row.push(cell);
+          if (row.some(v => v.trim() !== "")) rows.push(row);
+          row = []; cell = "";
+          continue;
+        }
+        cell += c;
+      }
+      if (cell || row.length) { row.push(cell); rows.push(row); }
+      const headers = rows.shift().map(h => h.trim());
+      return rows.map(values => Object.fromEntries(headers.map((h, i) => [h, values[i] ?? ""])));
+    }
+
+    function cleanData(records) {
+      const seen = new Set();
+      return records
+        .map(r => ({
+          Year: num(r.Year),
+          Player: String(r.Player || "").replace("*", "").trim(),
+          Pos: String(r.Pos || "NA").trim(),
+          Age: num(r.Age),
+          Tm: String(r.Tm || "NA").trim(),
+          G: num(r.G),
+          PER: num(r.PER),
+          PTS: num(r.PTS),
+          TRB: num(r.TRB),
+          AST: num(r.AST),
+          STL: num(r.STL),
+          BLK: num(r.BLK)
+        }))
+        .filter(r => r.Year && r.Player && r.Tm && r.Tm !== "TOT")
+        .filter(r => {
+          const key = `${r.Year}|${r.Player}|${r.Tm}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    }
+
+    function uniqueOptions(rows, field) {
+      return [...new Set(rows.map(r => r[field]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+    }
+
+    function fillSelect(id, values, allLabel) {
+      const select = document.getElementById(id);
+      select.innerHTML = `<option value="ALL">${allLabel}</option>` + values.map(v => `<option value="${v}">${v}</option>`).join("");
+    }
+
+    function filteredRows() {
+      const season = document.getElementById("seasonFilter").value;
+      const team = document.getElementById("teamFilter").value;
+      const position = document.getElementById("positionFilter").value;
+      return cleanRows.filter(r =>
+        (season === "ALL" || String(r.Year) === season) &&
+        (team === "ALL" || r.Tm === team) &&
+        (position === "ALL" || r.Pos === position)
+      );
+    }
+
+    function avg(rows, field) {
+      return rows.length ? rows.reduce((sum, r) => sum + r[field], 0) / rows.length : 0;
+    }
+
+    function groupBy(rows, field) {
+      const map = new Map();
+      rows.forEach(r => {
+        const key = r[field];
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(r);
+      });
+      return map;
+    }
+
+    function renderKpis(rows) {
+      document.getElementById("kpiRows").textContent = rows.length.toLocaleString("es-CO");
+      document.getElementById("kpiPlayers").textContent = new Set(rows.map(r => r.Player)).size.toLocaleString("es-CO");
+      document.getElementById("kpiTeams").textContent = new Set(rows.map(r => r.Tm)).size.toLocaleString("es-CO");
+      document.getElementById("kpiPts").textContent = avg(rows, "PTS").toFixed(1);
+    }
+
+    function renderPlayers(rows) {
+      const metric = document.getElementById("metricFilter").value;
+      document.getElementById("metricHeader").textContent = metric;
+      const top = [...rows].sort((a, b) => b[metric] - a[metric]).slice(0, 12);
+      document.getElementById("playersTable").innerHTML = top.map(r =>
+        `<tr><td>${r.Player}</td><td>${r.Tm}</td><td>${r.Year}</td><td>${r[metric].toFixed(metric === "PER" ? 1 : 0)}</td></tr>`
+      ).join("");
+    }
+
+    function renderTeams(rows) {
+      const summary = [...groupBy(rows, "Tm")].map(([team, teamRows]) => ({
+        team,
+        players: new Set(teamRows.map(r => r.Player)).size,
+        PTS: avg(teamRows, "PTS"),
+        TRB: avg(teamRows, "TRB"),
+        AST: avg(teamRows, "AST"),
+        PER: avg(teamRows, "PER")
+      })).sort((a, b) => b.PTS - a.PTS).slice(0, 18);
+      document.getElementById("teamsTable").innerHTML = summary.map(r =>
+        `<tr><td>${r.team}</td><td>${r.players}</td><td>${r.PTS.toFixed(1)}</td><td>${r.TRB.toFixed(1)}</td><td>${r.AST.toFixed(1)}</td><td>${r.PER.toFixed(1)}</td></tr>`
+      ).join("");
+    }
+
+    function renderSeasonChart(rows) {
+      const metric = document.getElementById("metricFilter").value;
+      const svg = document.getElementById("seasonChart");
+      const width = 900, height = 310, pad = 44;
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      const summary = [...groupBy(rows, "Year")].map(([year, yearRows]) => ({
+        year: Number(year),
+        value: avg(yearRows, metric)
+      })).sort((a, b) => a.year - b.year);
+      const max = Math.max(...summary.map(d => d.value), 1);
+      const barW = summary.length ? (width - pad * 2) / summary.length : 0;
+      const bars = summary.map((d, i) => {
+        const h = (height - pad * 2) * (d.value / max);
+        const x = pad + i * barW + 2;
+        const y = height - pad - h;
+        const label = summary.length <= 18 || i % Math.ceil(summary.length / 14) === 0
+          ? `<text class="bar-label" x="${x + barW / 2}" y="${height - 14}" text-anchor="middle">${d.year}</text>` : "";
+        return `<rect x="${x}" y="${y}" width="${Math.max(barW - 4, 2)}" height="${h}" rx="3" fill="${metric === "PER" ? "#15803d" : "#1d428a"}"></rect>${label}`;
+      }).join("");
+      svg.innerHTML = `
+        <line class="axis" x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}"></line>
+        <line class="axis" x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}"></line>
+        <text class="bar-label" x="${pad}" y="24">${metric} promedio por temporada</text>
+        ${bars}
+      `;
+    }
+
+    function renderAll() {
+      const rows = filteredRows();
+      renderKpis(rows);
+      renderPlayers(rows);
+      renderTeams(rows);
+      renderSeasonChart(rows);
+    }
+
+    async function init() {
+      let text;
+      let source = "GitHub";
+      try {
+        const response = await fetch(DATA_URL, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        text = await response.text();
+      } catch (error) {
+        text = fallbackCsv;
+        source = "muestra interna por falta de conexión";
+      }
+      cleanRows = cleanData(parseCsv(text));
+      fillSelect("seasonFilter", uniqueOptions(cleanRows, "Year").reverse(), "Todas");
+      fillSelect("teamFilter", uniqueOptions(cleanRows, "Tm"), "Todos");
+      fillSelect("positionFilter", uniqueOptions(cleanRows, "Pos"), "Todas");
+      document.querySelectorAll("select").forEach(select => select.addEventListener("change", renderAll));
+      document.getElementById("status").textContent = `Pipeline ejecutado: ${cleanRows.length.toLocaleString("es-CO")} registros limpios cargados desde ${source}.`;
+      renderAll();
+    }
+
+    init();
+  </script>
+</body>
+</html>
+
